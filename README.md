@@ -8,7 +8,7 @@
 2. Run \
    `docker run -it nle-container` \
 3. Run program: \
-   From container: `python main.py` \
+   From container testProg: `python rando1000.py` \
 4. Play as human: \
    `python -m nle.scripts.play --env NetHackChallenge-v0`
 5. I used Remote - Containers extenstion in Visual Studio Code \
