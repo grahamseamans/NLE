@@ -5,7 +5,7 @@ from tensorflow.keras import layers
 
 titanic = pd.read_csv("https://storage.googleapis.com/tf-datasets/titanic/train.csv")
 
-print("\nfirst 5 maybe?\n", titanic.head())
+print("\nfirst 5 maybe?\n", titanic.head(15))
 
 titanic_features = titanic.copy()
 titanic_labels = titanic_features.pop('survived')
@@ -35,3 +35,57 @@ all_numeric_inputs = norm(x)
 print("\nHappened right there, right?\nStill seems to work tho.\n")
 
 print("Numeric inputs:\n", all_numeric_inputs)
+
+preprocessed_inputs = [all_numeric_inputs]
+
+for name, input in inputs.items():
+	if input.dtype == tf.float32:
+		continue
+	
+	lookup = layers.StringLookup(vocabulary=np.unique(titanic_features[name]))
+	one_hot = layers.CategoryEncoding(num_tokens=lookup.vocabulary_size())
+
+	x = lookup(input)
+	x = one_hot(x)
+	preprocessed_inputs.append(x)
+
+preprocessed_inputs_cat = layers.Concatenate()(preprocessed_inputs)
+
+titanic_preprocessing = tf.keras.Model(inputs, preprocessed_inputs_cat)
+
+# print("Something might happen here...")
+# tf.keras.utils.plot_model(model = titanic_labels, rankdir="LR", dpi=72, show_shapes=True)
+titanic_features_dict = {name: np.array(value)
+						 for name, value in titanic_features.items()}
+
+features_dict = {name:values[:1] for name, values in titanic_features_dict.items()}
+print(titanic_preprocessing(features_dict))
+
+def titanic_model(preprocessing_head, inputs):
+	body = tf.keras.Sequential([
+		layers.Dense(64),
+		layers.Dense(1)
+	])
+
+	preprocessed_inputs = preprocessing_head(inputs)
+	result = body(preprocessed_inputs)
+	model = tf.keras.Model(inputs, result)
+
+	model.compile(loss=tf.losses.BinaryCrossentropy(from_logits=True),
+					optimizer=tf.optimizers.Adam())
+	return model
+
+titanic_model = titanic_model(titanic_preprocessing, inputs)
+
+titanic_model.fit(x=titanic_features_dict, y=titanic_labels, epochs=10)
+
+titanic_model.save('test')
+reloaded = tf.keras.models.load_model('test')
+
+features_dict = {name:values[3:4] for name, values in titanic_features_dict.items()}
+
+before = titanic_model(features_dict)
+after = reloaded(features_dict)
+assert (before-after)<1e-3
+print(before)
+print(after)
